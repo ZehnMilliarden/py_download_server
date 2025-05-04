@@ -20,7 +20,7 @@
             "name": "Python: SimpleTest",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceRoot}/studio/simpletest.py",
+            "program": "${workspaceRoot}/pds.py",
             "console": "integratedTerminal",
             "justMyCode": false,
             "evn": {
