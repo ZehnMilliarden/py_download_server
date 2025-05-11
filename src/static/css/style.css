@@ -1,0 +1,285 @@
+/* 全局样式 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Microsoft YaHei', Arial, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f5f5f5;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* 头部样式 */
+header {
+    margin-bottom: 20px;
+}
+
+header h1 {
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.breadcrumb {
+    background-color: #fff;
+    padding: 10px 15px;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+.breadcrumb a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+.breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.breadcrumb .separator {
+    margin: 0 5px;
+    color: #999;
+}
+
+/* 按钮样式 */
+.btn {
+    display: inline-block;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+.btn.primary {
+    background-color: #3498db;
+    color: white;
+}
+
+.btn.primary:hover {
+    background-color: #2980b9;
+}
+
+.btn.secondary {
+    background-color: #95a5a6;
+    color: white;
+}
+
+.btn.secondary:hover {
+    background-color: #7f8c8d;
+}
+
+.btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+/* 操作区域样式 */
+.actions {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+/* 文件列表样式 */
+.file-list-container {
+    background-color: #fff;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+.file-list {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.file-list th,
+.file-list td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.file-list th {
+    background-color: #f9f9f9;
+    font-weight: bold;
+}
+
+.file-list tr:hover {
+    background-color: #f5f5f5;
+}
+
+.file-list .folder-icon {
+    color: #f39c12;
+}
+
+.file-list .file-icon {
+    color: #3498db;
+}
+
+.file-list .action-btn {
+    background: none;
+    border: none;
+    color: #3498db;
+    cursor: pointer;
+    margin-right: 5px;
+}
+
+.file-list .action-btn:hover {
+    color: #2980b9;
+}
+
+/* 上传进度样式 */
+.upload-progress-container,
+.download-progress-container {
+    background-color: #fff;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.upload-progress-container h3,
+.download-progress-container h3 {
+    margin-bottom: 10px;
+    color: #2c3e50;
+}
+
+.progress-item {
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+}
+
+.progress-bar {
+    height: 10px;
+    background-color: #ecf0f1;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-top: 5px;
+}
+
+.progress-bar-inner {
+    height: 100%;
+    background-color: #3498db;
+    width: 0;
+    transition: width 0.3s;
+}
+
+/* 上下文菜单样式 */
+.context-menu {
+    display: none;
+    position: absolute;
+    width: 150px;
+    background-color: #fff;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+}
+
+.context-menu ul {
+    list-style: none;
+}
+
+.context-menu li {
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.context-menu li:hover {
+    background-color: #f5f5f5;
+}
+
+/* 模态对话框样式 */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1001;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: #fff;
+    margin: 10% auto;
+    padding: 20px;
+    border-radius: 4px;
+    width: 50%;
+    max-width: 500px;
+    position: relative;
+}
+
+.close {
+    position: absolute;
+    right: 20px;
+    top: 10px;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.modal-footer {
+    margin-top: 20px;
+    text-align: right;
+}
+
+.modal-footer button {
+    margin-left: 10px;
+}
+
+/* 欢迎页面样式 */
+.welcome-section {
+    background-color: #fff;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+    text-align: center;
+}
+
+.welcome-section h2 {
+    color: #2c3e50;
+    margin-bottom: 20px;
+}
+
+.welcome-section p {
+    margin-bottom: 20px;
+}
+
+.welcome-section ul {
+    text-align: left;
+    display: inline-block;
+    margin-bottom: 30px;
+}
+
+.welcome-section li {
+    margin-bottom: 10px;
+}
+
+.action-buttons {
+    margin-top: 20px;
+}
+
+.action-buttons .btn {
+    margin: 0 10px;
+}
+
+footer {
+    text-align: center;
+    margin-top: 40px;
+    color: #7f8c8d;
+}

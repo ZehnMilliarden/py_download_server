@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件浏览器</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/main.js" defer></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>文件浏览器</h1>
+            <div class="breadcrumb" id="breadcrumb">
+                <a href="/">根目录</a>
+                <span id="path-parts"></span>
+            </div>
+        </header>
+
+        <div class="actions">
+            <div class="upload-area">
+                <button id="upload-btn" class="btn primary">上传文件</button>
+                <input type="file" id="file-input" multiple style="display: none;">
+            </div>
+            <div class="download-area">
+                <button id="download-selected-btn" class="btn secondary" disabled>下载选中</button>
+            </div>
+        </div>
+
+        <div class="file-list-container">
+            <table class="file-list">
+                <thead>
+                    <tr>
+                        <th width="30"><input type="checkbox" id="select-all"></th>
+                        <th>名称</th>
+                        <th>大小</th>
+                        <th>修改时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="file-list">
+                    <!-- 文件列表将通过JavaScript动态生成 -->
+                </tbody>
+            </table>
+        </div>
+
+        <div id="upload-progress-container" class="upload-progress-container" style="display: none;">
+            <h3>上传进度</h3>
+            <div id="upload-progress-list"></div>
+        </div>
+
+        <div id="download-progress-container" class="download-progress-container" style="display: none;">
+            <h3>下载队列</h3>
+            <div id="download-progress-list"></div>
+        </div>
+    </div>
+
+    <!-- 上下文菜单 -->
+    <div id="context-menu" class="context-menu">
+        <ul>
+            <li id="context-download"><i class="icon-download"></i> 下载</li>
+            <li id="context-upload" class="folder-only"><i class="icon-upload"></i> 上传到此处</li>
+        </ul>
+    </div>
+
+    <!-- 模态对话框 -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="modal-title">提示</h2>
+            <div id="modal-body"></div>
+            <div class="modal-footer">
+                <button id="modal-cancel" class="btn">取消</button>
+                <button id="modal-confirm" class="btn primary">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 当前路径和文件列表数据
+        const currentPath = '{{current_path}}';
+        const items = JSON.parse('{{items_json}}');
+        const pathParts = JSON.parse('{{path_parts_json}}');
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化路径导航
+            initPathNavigation(pathParts);
+            
+            // 渲染文件列表
+            renderFileList(items);
+            
+            // 初始化事件监听
+            initEventListeners();
+            
+            // 初始化上下文菜单
+            initContextMenu();
+        });
+    </script>
+</body>
+</html>
