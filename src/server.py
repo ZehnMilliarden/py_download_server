@@ -60,24 +60,34 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
                 self.serve_static_file(path[8:])
                 return
             
-            # 处理文件下载请求
+            # 处理单文件下载请求
             if path.startswith('/download/'):
                 rel_path = path[10:]
                 self.download_manager.start_download(rel_path, self)
                 return
             
-            # 处理目录浏览请求
+            # 处理批量下载请求
+            if path.startswith('/download-batch/'):
+                download_id = path[15:]
+                self.download_manager.serve_batch_download(download_id, self)
+                return
+            
+            # 处理目录浏览请求 - 直接打开文件管理器
             if path == '/' or path.startswith('/browse/'):
                 rel_path = path[8:] if path.startswith('/browse/') else ''
                 self.serve_directory_listing(rel_path)
                 return
             
-            # 默认返回主页
-            self.serve_index_page()
+            # 如果以上所有都不匹配，重定向到根目录
+            self.send_response(302)
+            self.send_header('Location', '/')
+            self.end_headers()
             
         except Exception as e:
             print(f"处理GET请求错误: {str(e)}")
             self.send_error(500, f"服务器错误: {str(e)}")
+            import traceback
+            traceback.print_exc()
     
     def do_HEAD(self):
         """处理HEAD请求（用于断点续传）"""
@@ -140,81 +150,187 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
         if json_data is None:
             json_data = {}
         
-        # 列出目录内容
-        if endpoint == 'list':
-            path = query_params.get('path', [''])[0]
-            try:
-                items = self.file_manager.list_directory(path)
-                self.send_json_response(items)
-            except Exception as e:
-                self.send_json_response({'error': str(e)}, status=400)
-            return
-        
-        # 检查上传冲突
-        if endpoint == 'check_conflicts':
-            target_dir = json_data.get('target_dir', '')
-            filenames = json_data.get('filenames', [])
-            
-            if not filenames:
-                self.send_json_response({'error': '没有提供文件名'}, status=400)
+        try:
+            # 列出目录内容
+            if endpoint == 'list':
+                path = query_params.get('path', [''])[0]
+                try:
+                    items = self.file_manager.list_directory(path)
+                    self.send_json_response(items)
+                except Exception as e:
+                    self.send_json_response({'error': str(e)}, status=400)
                 return
             
-            try:
-                result = self.upload_manager.check_upload_conflicts(filenames, target_dir)
-                self.send_json_response(result)
-            except Exception as e:
-                self.send_json_response({'error': str(e)}, status=400)
-            return
-        
-        # 开始上传
-        if endpoint == 'start_upload':
-            target_dir = json_data.get('target_dir', '')
-            filename = json_data.get('filename', '')
-            
-            if not filename:
-                self.send_json_response({'error': '没有提供文件名'}, status=400)
+            # ===== 上传相关API =====
+            # 检查上传冲突
+            if endpoint == 'check_conflicts':
+                target_dir = json_data.get('target_dir', '')
+                filenames = json_data.get('filenames', [])
+                
+                if not filenames:
+                    self.send_json_response({'error': '没有提供文件名'}, status=400)
+                    return
+                
+                try:
+                    result = self.upload_manager.check_upload_conflicts(filenames, target_dir)
+                    self.send_json_response(result)
+                except Exception as e:
+                    self.send_json_response({'error': str(e)}, status=400)
                 return
             
-            try:
-                result = self.upload_manager.start_upload(filename, target_dir)
-                self.send_json_response(result)
-            except Exception as e:
-                self.send_json_response({'error': str(e)}, status=400)
-            return
-        
-        # 添加到下载队列
-        if endpoint == 'queue_download':
-            paths = json_data.get('paths', [])
-            session_id = json_data.get('session_id', str(uuid.uuid4()))
-            
-            if not paths:
-                self.send_json_response({'error': '没有提供文件路径'}, status=400)
+            # 开始上传
+            if endpoint == 'start_upload':
+                target_dir = json_data.get('target_dir', '')
+                filename = json_data.get('filename', '')
+                file_size = json_data.get('file_size', 0)
+                overwrite = json_data.get('overwrite', False)
+                
+                if not filename:
+                    self.send_json_response({'error': '没有提供文件名'}, status=400)
+                    return
+                
+                try:
+                    result = self.upload_manager.start_upload(filename, target_dir, file_size, overwrite)
+                    self.send_json_response(result)
+                except Exception as e:
+                    self.send_json_response({'error': str(e)}, status=400)
                 return
             
-            try:
-                result = self.download_manager.add_to_queue(paths, session_id)
-                self.send_json_response(result)
-            except Exception as e:
-                self.send_json_response({'error': str(e)}, status=400)
-            return
-        
-        # 获取下载队列状态
-        if endpoint == 'queue_status':
-            session_id = query_params.get('session_id', [''])[0]
-            
-            if not session_id:
-                self.send_json_response({'error': '没有提供会话ID'}, status=400)
+            # 获取上传进度
+            if endpoint == 'upload_progress':
+                upload_id = query_params.get('upload_id', [''])[0]
+                
+                try:
+                    if upload_id:
+                        result = self.upload_manager.get_upload_progress(upload_id)
+                    else:
+                        result = self.upload_manager.get_upload_progress()
+                    self.send_json_response(result)
+                except Exception as e:
+                    self.send_json_response({'error': str(e)}, status=400)
                 return
             
-            try:
-                result = self.download_manager.get_queue_status(session_id)
-                self.send_json_response(result)
-            except Exception as e:
-                self.send_json_response({'error': str(e)}, status=400)
-            return
-        
-        # 未知API端点
-        self.send_json_response({'error': f'未知API端点: {endpoint}'}, status=404)
+            # 完成上传
+            if endpoint == 'complete_upload':
+                upload_id = json_data.get('upload_id', '')
+                
+                if not upload_id:
+                    self.send_json_response({'error': '没有提供上传ID'}, status=400)
+                    return
+                
+                try:
+                    result = self.upload_manager.complete_upload(upload_id)
+                    self.send_json_response(result)
+                except Exception as e:
+                    self.send_json_response({'error': str(e)}, status=400)
+                return
+            
+            # 取消上传
+            if endpoint == 'cancel_upload':
+                upload_id = json_data.get('upload_id', '')
+                
+                if not upload_id:
+                    self.send_json_response({'error': '没有提供上传ID'}, status=400)
+                    return
+                
+                try:
+                    result = self.upload_manager.cancel_upload(upload_id)
+                    self.send_json_response(result)
+                except Exception as e:
+                    self.send_json_response({'error': str(e)}, status=400)
+                return
+            
+            # ===== 目录相关API =====
+            # 创建目录
+            if endpoint == 'create_directory':
+                path = json_data.get('path', '')
+                
+                if not path:
+                    self.send_json_response({'error': '没有提供目录路径'}, status=400)
+                    return
+                
+                try:
+                    success = self.file_manager.create_directory(path)
+                    if success:
+                        self.send_json_response({'success': True, 'message': f'目录创建成功: {path}'})
+                    else:
+                        self.send_json_response({'error': f'目录创建失败: {path}'}, status=400)
+                except Exception as e:
+                    self.send_json_response({'error': str(e)}, status=400)
+                return
+            
+            # 删除文件或目录
+            if endpoint == 'delete_item':
+                path = json_data.get('path', '')
+                
+                if not path:
+                    self.send_json_response({'error': '没有提供要删除的路径'}, status=400)
+                    return
+                
+                try:
+                    success = self.file_manager.delete_item(path)
+                    if success:
+                        self.send_json_response({'success': True, 'message': f'删除成功: {path}'})
+                    else:
+                        self.send_json_response({'error': f'删除失败: {path}'}, status=400)
+                except Exception as e:
+                    self.send_json_response({'error': str(e)}, status=400)
+                return
+            
+            # ===== 下载相关API =====
+            # 创建批量下载
+            if endpoint == 'batch_download':
+                paths = json_data.get('paths', [])
+                folder_name = json_data.get('folder_name', '')
+                
+                if not paths:
+                    self.send_json_response({'error': '没有提供文件路径'}, status=400)
+                    return
+                
+                try:
+                    result = self.download_manager.create_batch_download(paths, folder_name)
+                    self.send_json_response(result)
+                except Exception as e:
+                    self.send_json_response({'error': str(e)}, status=400)
+                return
+            
+            # 获取下载状态
+            if endpoint == 'download_status':
+                download_id = query_params.get('download_id', [''])[0]
+                
+                try:
+                    if download_id:
+                        result = self.download_manager.get_download_status(download_id)
+                    else:
+                        result = self.download_manager.get_download_status()
+                    self.send_json_response(result)
+                except Exception as e:
+                    self.send_json_response({'error': str(e)}, status=400)
+                return
+            
+            # 取消下载
+            if endpoint == 'cancel_download':
+                download_id = json_data.get('download_id', '')
+                
+                if not download_id:
+                    self.send_json_response({'error': '没有提供下载ID'}, status=400)
+                    return
+                
+                try:
+                    result = self.download_manager.cancel_download(download_id)
+                    self.send_json_response(result)
+                except Exception as e:
+                    self.send_json_response({'error': str(e)}, status=400)
+                return
+            
+            # 未知API端点
+            self.send_json_response({'error': f'未知API端点: {endpoint}'}, status=404)
+            
+        except Exception as e:
+            print(f"API错误 ({endpoint}): {str(e)}")
+            import traceback
+            traceback.print_exc()
+            self.send_json_response({'error': f'处理API请求错误: {str(e)}'}, status=500)
     
     def handle_file_upload(self, target_dir):
         """处理文件上传"""
@@ -307,6 +423,7 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
         try:
             # 获取目录内容
             items = self.file_manager.list_directory(rel_path)
+            print(f"目录列表 ({rel_path}): {items}")
             
             # 构建当前路径导航
             path_parts = []
@@ -324,17 +441,26 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
             with open(template_path, 'r', encoding='utf-8') as f:
                 template = f.read()
             
-            # 定义一个简单的HTML转义函数
-            def html_escape(s):
-                return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace("'", '&#39;').replace('"', '&quot;')
+            # 生成直接在HTML中显示的文件列表
+            file_list_html = self._generate_file_list_html(rel_path, items)
             
             # 替换模板变量
             html = template.replace('{{current_path}}', rel_path)
-            # 将JSON数据转义后嵌入到HTML中
-            items_json = html_escape(json.dumps(items))
-            path_parts_json = html_escape(json.dumps(path_parts))
-            html = html.replace('{{items_json}}', items_json)
-            html = html.replace('{{path_parts_json}}', path_parts_json)
+            
+            # 将JSON数据编码后嵌入到HTML中
+            items_json = json.dumps(items)
+            path_parts_json = json.dumps(path_parts)
+            
+            # 打印所有返回的JSON数据以及长度进行调试
+            print(f"目录数据 (长度{len(items_json)}): {items_json}")
+            print(f"路径数据 (长度{len(path_parts_json)}): {path_parts_json}")
+            
+            # 将生成的文件列表HTML直接插入到页面中
+            html = html.replace('<!-- FILE_LIST_PLACEHOLDER -->', file_list_html)
+            
+            # 添加JSON数据作为备用
+            html = html.replace('{{items_json}}', items_json.replace('\\', '\\\\').replace('"', '\\"'))
+            html = html.replace('{{path_parts_json}}', path_parts_json.replace('\\', '\\\\').replace('"', '\\"'))
             
             # 发送响应
             self.send_response(200)
@@ -347,6 +473,112 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
             print(f"提供目录列表错误: {str(e)}")
             self.send_error(500, f"服务器错误: {str(e)}")
     
+    def _generate_file_list_html(self, current_path, items):
+        """生成文件列表HTML"""
+        html = []
+        
+        # 分离文件夹和文件
+        folders = sorted([item for item in items if item['is_dir']], key=lambda x: x['name'])
+        files = sorted([item for item in items if not item['is_dir']], key=lambda x: x['name'])
+        
+        # 添加父目录链接
+        if current_path:
+            parent_path = '/'.join(current_path.split('/')[:-1])
+            html.append(f'''
+            <tr class="parent-dir">
+                <td></td>
+                <td colspan="4">
+                    <a href="/browse/{parent_path}">
+                        <span class="folder-icon"></span> ../ (返回上级目录)
+                    </a>
+                </td>
+            </tr>''')
+        
+        # 添加文件夹
+        for folder in folders:
+            folder_path = f"{current_path}/{folder['name']}" if current_path else folder['name']
+            folder_path = folder_path.replace('//', '/')
+            html.append(f'''
+            <tr data-path="{folder_path}" data-type="folder">
+                <td></td>
+                <td>
+                    <a href="/browse/{folder_path}" class="item-name">
+                        <span class="folder-icon"></span> {folder['name']}
+                    </a>
+                </td>
+                <td>文件夹</td>
+                <td>{folder['mtime_str']}</td>
+                <td>
+                    <button class="action-btn upload-to-folder" data-path="{folder_path}" title="上传到此文件夹">
+                        <i class="icon-upload"></i>
+                    </button>
+                </td>
+            </tr>''')
+        
+        # 添加文件
+        for file in files:
+            file_path = f"{current_path}/{file['name']}" if current_path else file['name']
+            file_path = file_path.replace('//', '/')
+            icon_class = self._get_file_icon_class(file['name'])
+            size_str = self._format_size(file['size'])
+            
+            html.append(f'''
+            <tr data-path="{file_path}" data-type="file">
+                <td><input type="checkbox" class="file-checkbox" data-path="{file_path}"></td>
+                <td>
+                    <span class="item-name">
+                        <span class="file-icon {icon_class}"></span> {file['name']}
+                    </span>
+                </td>
+                <td>{size_str}</td>
+                <td>{file['mtime_str']}</td>
+                <td>
+                    <a href="/download/{file_path}" class="action-btn download-file" download title="下载">
+                        <i class="icon-download"></i>
+                    </a>
+                </td>
+            </tr>''')
+        
+        # 没有文件时显示提示
+        if not folders and not files:
+            html.append('''
+            <tr>
+                <td colspan="5" class="empty-message">没有文件或目录</td>
+            </tr>''')
+            
+        return ''.join(html)
+    
+    def _get_file_icon_class(self, filename):
+        """根据文件名返回图标类"""
+        ext = os.path.splitext(filename)[1].lower()[1:]
+        
+        # 图片文件
+        if ext in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp']:
+            return 'image'
+        
+        # 视频文件
+        if ext in ['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm']:
+            return 'video'
+        
+        # 压缩文件
+        if ext in ['zip', 'rar', '7z', 'tar', 'gz', 'bz2']:
+            return 'archive'
+        
+        return ''
+        
+    def _format_size(self, size_bytes):
+        """格式化文件大小"""
+        if size_bytes == 0:
+            return "0 B"
+        
+        units = ["B", "KB", "MB", "GB", "TB"]
+        i = 0
+        while size_bytes >= 1024 and i < len(units) - 1:
+            size_bytes /= 1024
+            i += 1
+            
+        return f"{size_bytes:.2f} {units[i]}"
+
     def serve_index_page(self):
         """提供主页"""
         try:
